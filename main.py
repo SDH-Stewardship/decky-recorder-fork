@@ -655,7 +655,7 @@ class Plugin:
                     ff.write(f"file {str(f)}\n")
 
             dateTime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            rolling_directory = Path(f"{self._localFilePath}")
+            rolling_directory = Path(f"{self._localFilePath}/{app_name}")
             logger.debug(f"Creating directory if not exists: {rolling_directory.__fspath__()}")
             rolling_directory.mkdir(exist_ok=True)
 
