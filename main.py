@@ -1,4 +1,5 @@
 import os
+import pathlib
 import sys
 import traceback
 import subprocess
@@ -278,7 +279,7 @@ class Plugin:
                     videoPipeline = f"pipewiresrc do-timestamp=true ! vaapipostproc ! queue ! vaapih264enc ! h264parse ! splitmuxsink name=sink muxer={muxer} muxer-pad-map=x-pad-map,audio=vid location={self._filepath} max-size-time=1000000000 max-files=480"
                 else:
                     logger.info("Setting local filepath no rolling")
-                    directory = Path(f"{self._localFilePath}")
+                    directory = Path(f"{self._localFilePath}/{app_name}")
                     logger.debug(f"Creating directory if not exists: {directory.__fspath__()}")
                     directory.mkdir(exist_ok=True)
 
