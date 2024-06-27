@@ -1,4 +1,5 @@
 import os
+import pathlib
 import sys
 import traceback
 import subprocess
@@ -206,8 +207,16 @@ class Plugin:
                     )
                 if not self._rolling:
                     logger.info("Setting local filepath no rolling")
-                    self._filepath = f"{self._localFilePath}/{app_name}_{dateTime}.{self._fileformat}"
-                    fileSinkPipeline = f' filesink location="{self._filepath}.temp" '
+                    directory = pathlib.Path(f"{self._localFilePath}/{app_name}")
+                    logger.debug(f"Creating directory if not exists: {directory.__fspath__()}")
+                    directory.mkdir(exist_ok=True)
+
+                    file_name = f"{app_name}-{dateTime}"
+                    logger.debug(f"Filename for recording: {rolling_file_name}")
+                    self._filepath = f"{rolling_directory.joinpath(rolling_file_name)}.{self._fileformat}"
+                    logger.debug(f"Filepath for recording: {rolling_file_path}")
+
+                    fileSinkPipeline = f' filesink location="{self._filepath}" '
                 else:
                     logger.info("Setting local filepath")
                     fileSinkPipeline = f" splitmuxsink name=sink muxer={muxer} muxer-pad-map=x-pad-map,audio=vid location={self._filepath} max-size-time=1000000000 max-files=480"
