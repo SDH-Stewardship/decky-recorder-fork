@@ -424,10 +424,16 @@ const DeckyRecorder: VFC<{ serverAPI: ServerAPI, logic: DeckyRecorderLogic }> = 
 				? <PanelSectionRow><ButtonItem disabled={!shouldButtonsBeEnabled()} onClick={() => { rollingRecordButtonPress(30) }}>30 sec</ButtonItem></PanelSectionRow> : null}
 
 			{(isRolling)
+				? <PanelSectionRow><ButtonItem disabled={!shouldButtonsBeEnabled()} onClick={() => { rollingRecordButtonPress(45) }}>45 sec</ButtonItem></PanelSectionRow> : null}
+
+			{(isRolling)
 				? <PanelSectionRow><ButtonItem disabled={!shouldButtonsBeEnabled()} onClick={() => { rollingRecordButtonPress(60) }}>1 min</ButtonItem></PanelSectionRow> : null}
 
 			{(isRolling)
 				? <PanelSectionRow><ButtonItem disabled={!shouldButtonsBeEnabled()} onClick={() => { rollingRecordButtonPress(60 * 2) }}>2 min</ButtonItem></PanelSectionRow> : null}
+
+			{(isRolling)
+				? <PanelSectionRow><ButtonItem disabled={!shouldButtonsBeEnabled()} onClick={() => { rollingRecordButtonPress(60 * 3) }}>3 min</ButtonItem></PanelSectionRow> : null}
 
 			{(isRolling)
 				? <PanelSectionRow><ButtonItem disabled={!shouldButtonsBeEnabled()} onClick={() => { rollingRecordButtonPress(60 * 5) }}>5 min</ButtonItem></PanelSectionRow> : null}
