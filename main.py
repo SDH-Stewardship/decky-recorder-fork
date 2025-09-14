@@ -99,6 +99,7 @@ class Plugin:
     _watchdog_task = None
     _muxer_map = {"mp4": "matroskamux", "mkv": "matroskamux", "mov": "qtmux"}
     _wakeup_count = 1
+    _app_named_directories: bool = False
     _settings = None
 
     async def get_wakeup_count(self):
@@ -206,14 +207,19 @@ class Plugin:
                         f"{self._rollingRecordingFolder}/{self._rollingRecordingPrefix}_%02d.{self._fileformat}"
                     )
                 if not self._rolling:
-                    logger.info("Setting local filepath no rolling")
-                    directory = pathlib.Path(f"{self._localFilePath}/{app_name}")
-                    logger.debug(f"Creating directory if not exists: {directory.__fspath__()}")
-                    directory.mkdir(exist_ok=True)
+                    if self._app_named_directories:
+                        logger.debug("Setting local filepath no rolling (app-named directories)")
 
-                    file_name = f"{app_name}-{dateTime}"
-                    logger.debug(f"Filename for recording: {file_name}")
-                    self._filepath = f"{directory.joinpath(file_name)}.{self._fileformat}"
+                        directory = pathlib.Path(f"{self._localFilePath}/{app_name}")
+                        logger.debug(f"Creating directory if not exists: {directory.__fspath__()}")
+                        directory.mkdir(exist_ok=True)
+
+                        file_name = f"{app_name}-{dateTime}"
+                        logger.debug(f"Filename for recording: {file_name}")
+                        self._filepath = f"{directory.joinpath(file_name)}.{self._fileformat}"
+                    else:
+                        self._filepath = f"{self._localFilePath}/{app_name}_{dateTime}.{self._fileformat}"
+
                     logger.debug(f"Filepath for recording: {self._filepath}")
 
                     fileSinkPipeline = f' filesink location="{self._filepath}" '
@@ -482,6 +488,16 @@ class Plugin:
     async def get_local_fileformat(self):
         logger.info("Current local file format: " + self._fileformat)
         return self._fileformat
+    
+    async def enable_app_named_directories(self):
+        logger.info(f"App named directories: ON")
+        self._app_named_directories = True
+        await Plugin.saveConfig(self)
+
+    async def disable_app_named_directories(self):
+        logger.info(f"App named directories: OFF")
+        self._app_named_directories = False
+        await Plugin.saveConfig(self)
 
     async def loadConfig(self):
         logger.info("Loading settings from: {}".format(os.path.join(settingsDir, "decky-loader-settings.json")))
@@ -497,6 +513,7 @@ class Plugin:
         self._micEnabled = self._settings.getSetting("mic_enabled", False)
         self._micGain = self._settings.getSetting("mic_gain", 13.0)
         self._noiseReductionPercent = self._settings.getSetting("noise_reduction_percent", 50.0)
+        self._app_named_directories = self._settings.getSetting("app_named_directories", False)
 
         # Need this for initialization only honestly
         await Plugin.saveConfig(self)
@@ -510,6 +527,7 @@ class Plugin:
         self._settings.setSetting("mic_enabled", self._micEnabled)
         self._settings.setSetting("mic_gain", self._micGain)
         self._settings.setSetting("noise_reduction_percent", self._noiseReductionPercent )
+        self._settings.setSetting("app_named_directories", self._app_named_directories)
 
         return
 
