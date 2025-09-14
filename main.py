@@ -212,9 +212,9 @@ class Plugin:
                     directory.mkdir(exist_ok=True)
 
                     file_name = f"{app_name}-{dateTime}"
-                    logger.debug(f"Filename for recording: {rolling_file_name}")
-                    self._filepath = f"{rolling_directory.joinpath(rolling_file_name)}.{self._fileformat}"
-                    logger.debug(f"Filepath for recording: {rolling_file_path}")
+                    logger.debug(f"Filename for recording: {file_name}")
+                    self._filepath = f"{directory.joinpath(file_name)}.{self._fileformat}"
+                    logger.debug(f"Filepath for recording: {self._filepath}")
 
                     fileSinkPipeline = f' filesink location="{self._filepath}" '
                 else:
