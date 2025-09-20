@@ -288,7 +288,7 @@ class Plugin:
                     logger.debug(f"Filepath for recording: {self._filepath}")
 
                     # Non-rolling recording pipeline with direct file output to temp file
-                    videoPipeline = f"pipewiresrc do-timestamp=true ! vaapipostproc ! queue ! vaapih264enc ! h264parse ! {muxer} name=sink ! filesink location=\"{self._filepath}.temp\"" 
+                    videoPipeline = f"pipewiresrc do-timestamp=true ! vaapipostproc ! queue ! vaapih264enc ! h264parse ! {muxer} name=sink ! filesink location=\"{self._filepath}.temp\""
             else:
                 logger.info(f"Mode {self._mode} does not exist")
                 return
@@ -341,7 +341,10 @@ class Plugin:
                 # process the gstreamer output with ffmpeg again so that it can be uploaded to Twitter/X
                 logger.info("Process manual recording file with ffmpeg")
                 get_cmd_output(f'ffmpeg -i "{self._filepath}.temp" -c copy "{self._filepath}"', stdout_file=ffmpeg_out_file, stderr_file=ffmpeg_err_file)
-                get_cmd_output(f'rm "{self._filepath}.temp"')
+                try:
+                    os.remove(f"{self._filepath}.temp")
+                except FileNotFoundError:
+                    pass
                 logger.info("Process manual recording file with ffmpeg finished.")
         except Exception:
             logger.warn("Could not interrupt gstreamer, killing instead")
