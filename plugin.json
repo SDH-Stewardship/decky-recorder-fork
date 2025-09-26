@@ -1,7 +1,7 @@
 {
   "name": "Decky Recorder",
   "author": "marissa999/safijari",
-  "flags": ["debug"],
+  "flags": [],
   "publish": {
     "tags": ["Capture"],
     "description": "Record your games with Decky Recorder",
