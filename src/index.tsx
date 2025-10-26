@@ -24,7 +24,8 @@ import { FaVideo } from "react-icons/fa";
 class DeckyRecorderLogic
 	{
 	serverAPI: ServerAPI;
-	pressedAt: number = Date.now();
+	pressedAtStart: number = Date.now();
+	pressedAtHome: number = Date.now();
 
 	constructor(serverAPI: ServerAPI) {
 		this.serverAPI = serverAPI;
@@ -84,45 +85,57 @@ class DeckyRecorderLogic
 		return JSON.parse((await this.serverAPI.callPluginMethod('get_mic_sources', {})).result as string);
 	}
 
-	handleButtonInput = async (val: any[]) => {
-		/*
-		R2 0
-		L2 1
-		R1 2
-		R2 3
-		Y  4
-		B  5
-		X  6
-		A  7
-		UP 8
-		Right 9
-		Left 10
-		Down 11
-		Select 12
-		Steam 13
-		Start 14
-		QAM  ???
-		L5 15
-		R5 16*/
-		for (const inputs of val) {
-			if (Date.now() - this.pressedAt < 2000) {
-				continue;
-			}
-			if (inputs.ulButtons && inputs.ulButtons & (1 << 13) && inputs.ulButtons & (1 << 14)) {
-				this.pressedAt = Date.now();
-				(Router as any).DisableHomeAndQuickAccessButtons();
-				setTimeout(() => {
-					(Router as any).EnableHomeAndQuickAccessButtons();
-				}, 1000)
-				const isRolling = await this.serverAPI.callPluginMethod("is_rolling", {});
-				if (isRolling.result as boolean) {
-					await this.saveRollingRecording(30);
-				} else {
-					await this.notify("Enabling replay mode", 1500, "Steam + Start to save last 30 seconds");
-					this.toggleRolling(false);
-				}
-			}
+	handleButtonInput = async (controllerIndex: number, gamepadButton: any, isButtonPressed: boolean) => {
+		console.debug(`Button input detected\nControllerIndex: ${controllerIndex}\nGamepad Button: ${gamepadButton}\nIs button pressed: ${isButtonPressed}`)
+		if (isButtonPressed === false) {
+			return;
 		}
+
+		// Continue only if Home has been pressed within the last 2s
+		if (Date.now() - this.pressedAtHome < 2000) {
+			console.log(`Home button was pressed less than 2s ago.\nLast pressed time: ${Date.now() - this.pressedAtHome}`)
+		} else {
+			console.log(`Home button was pressed more than 2s ago.\nLast pressed time: ${Date.now() - this.pressedAtHome}`)
+			return;
+		}
+		
+		// Check if the Start button was pressed
+		if (gamepadButton == 36) {
+			console.log("Steam + Start were pressed. Cutting recording ...");
+			this.pressedAtStart = Date.now();
+			(Router as any).DisableHomeAndQuickAccessButtons();
+			setTimeout(() => {
+				(Router as any).EnableHomeAndQuickAccessButtons();
+			}, 1000)
+			const isRolling = await this.serverAPI.callPluginMethod("is_rolling", {});
+			if (isRolling.result as boolean) {
+				await this.saveRollingRecording(30);
+			} else {
+				await this.notify("Enabling replay mode", 1500, "Steam + Start to save last 30 seconds");
+				this.toggleRolling(false);
+			}
+		} else {
+			console.log(`Steam button was pressed, but start button was not\nExpected: 36. Got: ${gamepadButton}`)
+		}
+	}
+
+	// handleCommandInput = async (...inputs: any[]) => {
+	// 	for (const input of inputs) {
+	// 		if (input.eAction === 65) {
+	// 			console.log(`Home button was pressed\n${JSON.stringify(input)}`);
+	// 			this.pressedAtHome = Date.now();
+	// 		} else {
+	// 			console.log(`Home button was not pressed\n${JSON.stringify(input)}`)
+	// 		}
+	// 	}
+	// 	console.debug(`Command Input detected\nInputs: ${JSON.stringify(inputs)}`)
+		
+	// }
+
+	handleHomePress = async (origHome: any, ...args: any) => {
+		console.log("[Intercept] onGlobalMenuButtonDown → OnHomeButtonPressed");  
+		this.pressedAtHome = Date.now();
+		return origHome?.(...args);
 	}
 
 }
@@ -446,7 +459,19 @@ const DeckyRecorder: VFC<{ serverAPI: ServerAPI, logic: DeckyRecorderLogic }> = 
 
 export default definePlugin((serverApi: ServerAPI) => {
 	let logic = new DeckyRecorderLogic(serverApi);
-	let input_register = window.SteamClient.Input.RegisterForControllerStateChanges(logic.handleButtonInput);
+	let input_register = window.SteamClient.Input.RegisterForControllerInputMessages(logic.handleButtonInput);
+	// let all_register = window.SteamClient.Input.RegisterForControllerCommandMessages(logic.handleCommandInput);
+
+	const inst = window.SteamUIStore?.ActiveWindowInstance;
+  	if (!inst) return console.warn("ActiveWindowInstance not found");
+
+	const origHome  = inst.OnHomeButtonPressed?.bind(inst);
+	inst.OnHomeButtonPressed = (...args: any) => {
+		logic.handleHomePress(origHome, args);
+	};
+
+	inst.OnHomeButton
+
 	//Router.MainRunningApp?.display_name
 	return {
 		title: <div className={staticClasses.Title}>Decky Recorder</div>,
@@ -454,6 +479,7 @@ export default definePlugin((serverApi: ServerAPI) => {
 		icon: <FaVideo />,
 		onDismount() {
 			input_register.unregister();
+			all_register.unregister();
 		},
 		alwaysRender: true
 	};

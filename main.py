@@ -254,17 +254,42 @@ class Plugin:
                 "PATH": "/usr/bin:/bin",
                 "HOME": str(decky_plugin.DECKY_HOME),
                 "GST_VAAPI_ALL_DRIVERS": "1",
-                "GST_PLUGIN_PATH": str(GSTPLUGINSPATH),
+                # Use system plugins, add bundled path as secondary
+                "GST_PLUGIN_PATH": f"/usr/lib/gstreamer-1.0:{str(GSTPLUGINSPATH)}",
                 "LD_LIBRARY_PATH": f"{str(DEPSPATH)}:/usr/lib:/lib:/usr/lib/x86_64-linux-gnu",
-                "GST_DEBUG": "0",  # (0=none, 1=error, 2=warning, etc.)
+                "GST_DEBUG": "3",  # (0=none, 1=error, 2=warning, etc.)
                 "XDG_RUNTIME_DIR": "/run/user/1000",
                 "XDG_SESSION_TYPE": "wayland"
             }
 
+            # Log the actual environment being used
+            logger.info(f"GST_PLUGIN_PATH: {gst_env['GST_PLUGIN_PATH']}")
+            logger.info(f"LD_LIBRARY_PATH: {gst_env['LD_LIBRARY_PATH']}")
 
 
             # Build command as a list to avoid shell=True
             cmd_args = ["gst-launch-1.0"]
+
+            # Get the PipeWire gamescope video source node ID
+            video_node_id = None
+            try:
+                pw_dump_output = get_cmd_output(["pw-dump"], log=False)
+                import json
+                pw_data = json.loads(pw_dump_output)
+                for node in pw_data:
+                    if node.get("type") == "PipeWire:Interface:Node":
+                        info = node.get("info", {})
+                        props = info.get("props", {})
+                        # Look for gamescope video source
+                        if props.get("media.class") == "Video/Source" and props.get("node.name") == "gamescope":
+                            video_node_id = node.get("id")
+                            logger.info(f"Found gamescope Video/Source node ID: {video_node_id}")
+                            break
+
+                if not video_node_id:
+                    logger.warn("Could not find gamescope video source, will try without path")
+            except Exception as e:
+                logger.warn(f"Could not parse PipeWire nodes: {e}")
 
             # If mode is localFile
             if self._mode == "localFile":
@@ -276,7 +301,11 @@ class Plugin:
                         f"{self._rollingRecordingFolder}/{self._rollingRecordingPrefix}_%02d.{self._fileformat}"
                     )
                     # Rolling recording pipeline with splitmuxsink
-                    videoPipeline = f"pipewiresrc do-timestamp=true ! vaapipostproc ! queue ! vaapih264enc ! h264parse ! splitmuxsink name=sink muxer={muxer} muxer-pad-map=x-pad-map,audio=vid location={self._filepath} max-size-time=1000000000 max-files=480"
+                    # Simplified pipeline - remove explicit format conversions
+                    if video_node_id:
+                        videoPipeline = f'pipewiresrc path={video_node_id} do-timestamp=true ! queue ! videoconvert ! queue ! vaapih264enc ! h264parse ! splitmuxsink name=sink muxer={muxer} muxer-pad-map=x-pad-map,audio=vid location={self._filepath} max-size-time=1000000000 max-files=480'
+                    else:
+                        videoPipeline = f'pipewiresrc target-object=gamescope do-timestamp=true ! queue ! videoconvert ! queue ! vaapih264enc ! h264parse ! splitmuxsink name=sink muxer={muxer} muxer-pad-map=x-pad-map,audio=vid location={self._filepath} max-size-time=1000000000 max-files=480'
                 else:
                     logger.info("Setting local filepath no rolling")
                     directory = Path(f"{self._localFilePath}/{app_name}")
@@ -289,7 +318,10 @@ class Plugin:
                     logger.debug(f"Filepath for recording: {self._filepath}")
 
                     # Non-rolling recording pipeline with direct file output to temp file
-                    videoPipeline = f"pipewiresrc do-timestamp=true ! vaapipostproc ! queue ! vaapih264enc ! h264parse ! {muxer} name=sink ! filesink location=\"{self._filepath}.temp\""
+                    if video_node_id:
+                        videoPipeline = f'pipewiresrc path={video_node_id} do-timestamp=true ! queue ! videoconvert ! queue ! vaapih264enc ! h264parse ! {muxer} name=sink ! filesink location="{self._filepath}.temp"'
+                    else:
+                        videoPipeline = f'pipewiresrc target-object=gamescope do-timestamp=true ! queue ! videoconvert ! queue ! vaapih264enc ! h264parse ! {muxer} name=sink ! filesink location="{self._filepath}.temp"'
             else:
                 logger.info(f"Mode {self._mode} does not exist")
                 return

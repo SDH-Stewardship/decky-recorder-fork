@@ -18,6 +18,9 @@
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true
   },
-  "include": ["src"],
+  "include": [
+    "src",
+    "overrides.d.ts"
+  ],
   "exclude": ["node_modules"]
 }
