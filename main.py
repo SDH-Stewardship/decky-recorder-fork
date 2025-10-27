@@ -257,7 +257,7 @@ class Plugin:
                 # Use system plugins, add bundled path as secondary
                 "GST_PLUGIN_PATH": f"/usr/lib/gstreamer-1.0:{str(GSTPLUGINSPATH)}",
                 "LD_LIBRARY_PATH": f"{str(DEPSPATH)}:/usr/lib:/lib:/usr/lib/x86_64-linux-gnu",
-                "GST_DEBUG": "3",  # (0=none, 1=error, 2=warning, etc.)
+                "GST_DEBUG": "0",  # (0=none, 1=error, 2=warning, etc.)
                 "XDG_RUNTIME_DIR": "/run/user/1000",
                 "XDG_SESSION_TYPE": "wayland"
             }
