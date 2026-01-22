@@ -96,7 +96,7 @@ class Plugin:
     _optional_denoise_binary_path= decky_plugin.HOME + "/homebrew/data/decky-recorder/librnnoise_ladspa.so"
     _last_clip_time: float = time.time()
     _watchdog_task = None
-    _muxer_map = {"mp4": "matroskamux", "mkv": "matroskamux", "mov": "qtmux"}
+    _muxer_map = {"mp4": "qtmux", "mkv": "matroskamux", "mov": "qtmux"}
     _wakeup_count = 1
     _settings = None
 
@@ -254,7 +254,11 @@ class Plugin:
             if not self._rolling:
                 # process the gstreamer output with ffmpeg again so that it can be uploaded to Twitter/X
                 logger.info("Process manual recording file with ffmpeg")
-                get_cmd_output(f'ffmpeg -i "{self._filepath}.temp" -c copy "{self._filepath}"')
+                # Add movflags +faststart for MP4/MOV to fix seeking and duration metadata
+                movflags = ""
+                if self._fileformat in ["mp4", "mov"]:
+                    movflags = " -movflags +faststart"
+                get_cmd_output(f'ffmpeg -i "{self._filepath}.temp" -c copy{movflags} "{self._filepath}"')
                 get_cmd_output(f'rm "{self._filepath}.temp"')
                 logger.info("Process manual recording file with ffmpeg finished.")
         except Exception:
@@ -555,8 +559,12 @@ class Plugin:
                     ff.write(f"file {str(f)}\n")
 
             dateTime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            # Add movflags +faststart for MP4/MOV to fix seeking and duration metadata
+            movflags = ""
+            if self._fileformat in ["mp4", "mov"]:
+                movflags = " -movflags +faststart"
             ffmpeg = subprocess.Popen(
-                f'ffmpeg -hwaccel vaapi -hwaccel_output_format vaapi -vaapi_device /dev/dri/renderD128 -f concat -safe 0 -i {self._rollingRecordingFolder}/files -c copy "{self._localFilePath}/{app_name}-{clip_duration}s-{dateTime}.{self._fileformat}"',
+                f'ffmpeg -hwaccel vaapi -hwaccel_output_format vaapi -vaapi_device /dev/dri/renderD128 -f concat -safe 0 -i {self._rollingRecordingFolder}/files -c copy{movflags} "{self._localFilePath}/{app_name}-{clip_duration}s-{dateTime}.{self._fileformat}"',
                 shell=True,
                 stdout=std_out_file,
                 stderr=std_err_file,
